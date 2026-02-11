@@ -13,7 +13,6 @@ st.set_page_config(page_title="Manuals Executive Dashboard", layout="wide")
 # -------------------------------------------------
 st.markdown("""
 <style>
-
 .metric-card {
     padding: 18px;
     border-radius: 12px;
@@ -22,58 +21,52 @@ st.markdown("""
     text-align: center;
     color: #111111;
 }
-
 .big-metric {
     font-size: 34px;
     font-weight: 700;
     color: #111111;
 }
-
 .metric-label {
     font-size: 14px;
     color: #444444;
 }
-
 .manual-card {
     background:#ffffff;
     color:#111111;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# LOAD DATA — FROM UPLOAD
+# LOAD DATA — FROM SHAREPOINT URL
 # -------------------------------------------------
-
 st.sidebar.markdown("### 📂 Data Source")
 
-uploaded = st.sidebar.file_uploader(
-    "Upload tracking Excel",
-    type=["xlsx"]
-)
+EXCEL_URL = "https://marcconsultores.sharepoint.com/:x:/s/Proyectos2025-BancobunqMxico/IQD28Ssy0nUrS7oX2ylJaDgfAYAeqPvUDNgO_KbFxreLwuk?download=1"
 
 @st.cache_data(ttl=300)
-def load_data(file):
+def load_data():
 
     df = pd.read_excel(
-        file,
+        EXCEL_URL,
         sheet_name="02_Req_Register"
     )
 
     df = df.drop(columns=[c for c in df.columns if "Unnamed" in c])
-
-    # excluir cross cutting
     df = df[df["Manual Name"] != "Cross-cutting Annex"]
 
     return df
 
+if st.sidebar.button("🔄 Refresh data"):
+    load_data.clear()
 
-if uploaded is None:
-    st.warning("⬅️ Upload the tracking Excel file to start")
+try:
+    df = load_data()
+    st.sidebar.success("✅ Excel conectado")
+except Exception as e:
+    st.error("❌ No se pudo cargar el Excel desde SharePoint")
+    st.write(e)
     st.stop()
-
-df = load_data(uploaded)
 
 # -------------------------------------------------
 # STATUS MODEL
@@ -213,21 +206,13 @@ if selected_manual_label != T["all"]:
     df_f = df_f[df_f["Manual Name"] == manual_lookup[selected_manual_label]]
 
 # -------------------------------------------------
-# TITLE + ACTIVE FILTERS
+# TITLE
 # -------------------------------------------------
 title = T["title"] + (" — COMITÉ" if view_mode and LANG=="ES" else " — COMMITTEE VIEW" if view_mode else "")
 st.title(title)
 
-active = []
-for x in [selected_type_label, selected_status, selected_manual_label]:
-    if x != T["all"]:
-        active.append(x)
-
-if active:
-    st.caption(f"🔎 {T['active_filters']}: " + " | ".join(active))
-
 # -------------------------------------------------
-# KPIs EXECUTIVE CARDS
+# KPIs
 # -------------------------------------------------
 total_req = len(df_f)
 pct_final = (df_f["Status"]=="Final").mean()*100 if total_req else 0
@@ -249,107 +234,12 @@ with k3: card(T["kpi_qa"], f"{pct_qa:.1f}%")
 with k4: card(T["kpi_total"], total_req)
 
 # -------------------------------------------------
-# GAUGE + PIE
+# GAUGE
 # -------------------------------------------------
-c1,c2 = st.columns([1,1])
-
-with c1:
-    st.subheader("🎯 " + T["gauge"])
-    fig_gauge = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=overall_weighted,
-        gauge={'axis': {'range': [0,100]}}
-    ))
-    st.plotly_chart(fig_gauge, use_container_width=True)
-
-with c2:
-    st.subheader("📊 " + T["status_dist"])
-    status_dist = df_f["Status"].value_counts().reset_index()
-    status_dist.columns=["Status","Count"]
-    fig_pie = px.pie(
-        status_dist,
-        names="Status",
-        values="Count",
-        color="Status",
-        color_discrete_map=status_colors
-    )
-    st.plotly_chart(fig_pie, use_container_width=True)
-
-# -------------------------------------------------
-# PROGRESS PER MANUAL — EXEC CARDS
-# -------------------------------------------------
-progress = (
-    df_f.groupby("Manual Name")
-    .agg(total=("Req ID","count"),
-         weighted=("progress_weight","mean"))
-    .reset_index()
-)
-
-progress["pct"] = progress["weighted"]*100
-progress["Manual Label"] = progress["Manual Name"].apply(manual_label)
-
-st.subheader("📘 " + T["progress_manual"])
-
-for _, row in progress.iterrows():
-    color = "#2ca02c" if row.pct>=80 else "#ff7f0e" if row.pct>=50 else "#d62728"
-
-    st.markdown(f"""
-<div class="manual-card"
-     style="border-left:8px solid {color};
-            padding:14px;margin-bottom:10px;
-            border-radius:10px;
-            border:1px solid #e6e9ef;">
-        <h4>{row['Manual Label']}</h4>
-        <b>{T["completion"]}: {row.pct:.1f}%</b>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.progress(row.pct/100)
-
-# -------------------------------------------------
-# STACKED STATUS
-# -------------------------------------------------
-st.subheader("📊 " + T["status_breakdown"])
-
-stack = df_f.groupby(["Manual Name","Status"]).size().reset_index(name="count")
-stack["Manual Label"] = stack["Manual Name"].apply(manual_label)
-stack["pct"] = stack["count"]/stack.groupby("Manual Name")["count"].transform("sum")*100
-
-fig_stack = px.bar(
-    stack,
-    y="Manual Label",
-    x="pct",
-    color="Status",
-    orientation="h",
-    barmode="stack",
-    color_discrete_map=status_colors,
-    text="pct"
-)
-
-fig_stack.update_traces(texttemplate='%{text:.1f}%')
-fig_stack.update_layout(height=120 + 45*len(stack["Manual Label"].unique()))
-
-st.plotly_chart(fig_stack, use_container_width=True)
-
-# -------------------------------------------------
-# ACTION TABLE
-# -------------------------------------------------
-if not view_mode:
-    st.subheader(T["action_table"])
-
-    pending = df_f[df_f["Status"]!="Final"].copy()
-    pending["Manual"] = pending["Manual Name"].apply(manual_label)
-
-    show_cols = [
-        "Manual",
-        "Content Element",
-        "Requirement (minimum content)",
-        "Status",
-        "Comments (SPANISH)"
-    ]
-
-    st.dataframe(pending[show_cols], use_container_width=True)
-
-    csv = pending.to_csv(index=False).encode("utf-8")
-
-    st.download_button(T["download"], csv, "focus_items.csv", "text/csv")
+st.subheader("🎯 " + T["gauge"])
+fig_gauge = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=overall_weighted,
+    gauge={'axis': {'range': [0,100]}}
+))
+st.plotly_chart(fig_gauge, use_container_width=True)
