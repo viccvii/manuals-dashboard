@@ -43,19 +43,37 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# LOAD DATA
+# LOAD DATA — FROM UPLOAD
 # -------------------------------------------------
-@st.cache_data
-def load_data():
+
+st.sidebar.markdown("### 📂 Data Source")
+
+uploaded = st.sidebar.file_uploader(
+    "Upload tracking Excel",
+    type=["xlsx"]
+)
+
+@st.cache_data(ttl=300)
+def load_data(file):
+
     df = pd.read_excel(
-        "dashboard_test_bunq_manuals_tracking_matrix.xlsx",
+        file,
         sheet_name="02_Req_Register"
     )
+
     df = df.drop(columns=[c for c in df.columns if "Unnamed" in c])
+
+    # excluir cross cutting
     df = df[df["Manual Name"] != "Cross-cutting Annex"]
+
     return df
 
-df = load_data()
+
+if uploaded is None:
+    st.warning("⬅️ Upload the tracking Excel file to start")
+    st.stop()
+
+df = load_data(uploaded)
 
 # -------------------------------------------------
 # STATUS MODEL
@@ -333,4 +351,5 @@ if not view_mode:
     st.dataframe(pending[show_cols], use_container_width=True)
 
     csv = pending.to_csv(index=False).encode("utf-8")
+
     st.download_button(T["download"], csv, "focus_items.csv", "text/csv")
