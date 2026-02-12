@@ -1,3 +1,13 @@
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from datetime import datetime
+from io import BytesIO
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -428,34 +438,80 @@ if selected_manual_label == T["all"]:
 
 
 # -------------------------------------------------
-# ACTION TABLE
+# EXECUTIVE PDF EXPORT (ONLY WHEN ALL MANUALS)
 # -------------------------------------------------
-if not view_mode:
+if selected_manual_label == T["all"]:
 
-    st.subheader(T["action_table"])
+    st.markdown("---")
+    st.subheader("📄 Executive Report Export")
 
-    pending = df_f[df_f["Status"] != "Final"].copy()
-    pending["Manual"] = pending["Manual Name"].apply(manual_label)
+    if st.button("⬇️ Download Overall Progress (PDF)"):
 
-    show_cols = [
-        "Manual",
-        "Content Element",
-        "Requirement (minimum content)",
-        "Status",
-        "Comments (SPANISH)"
-    ]
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        elements = []
 
-    st.dataframe(
-        pending[show_cols],
-        use_container_width=True
-    )
+        styles = getSampleStyleSheet()
 
-    csv = pending.to_csv(index=False).encode("utf-8")
+        title_style = styles["Heading1"]
+        normal_style = styles["Normal"]
 
-    st.download_button(
-        T["download"],
-        csv,
-        "focus_items.csv",
-        "text/csv"
-    )
+        # Title
+        elements.append(Paragraph(
+            T["title"],
+            title_style
+        ))
+
+        elements.append(Spacer(1, 0.3 * inch))
+
+        # Date
+        elements.append(Paragraph(
+            f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            normal_style
+        ))
+
+        elements.append(Spacer(1, 0.5 * inch))
+
+        # Executive KPI Table
+        data = [
+            ["Metric", "Value"],
+            [T["kpi_weighted"], f"{overall_weighted:.1f}%"],
+            [T["kpi_total"], f"{total_req}"],
+            [T["kpi_final"], f"{pct_final:.1f}%"],
+            [T["kpi_qa"], f"{pct_qa:.1f}%"],
+        ]
+
+        table = Table(data, colWidths=[3 * inch, 2 * inch])
+
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#f3f4f6")),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+
+        elements.append(table)
+
+        elements.append(Spacer(1, 0.5 * inch))
+
+        # Executive Comment
+        elements.append(Paragraph(
+            f"Overall executive progress stands at {overall_weighted:.1f}%.",
+            styles["Heading2"]
+        ))
+
+        doc.build(elements)
+
+        buffer.seek(0)
+
+        st.download_button(
+            label="⬇️ Download PDF",
+            data=buffer,
+            file_name="Executive_Overall_Progress_Report.pdf",
+            mime="application/pdf"
+        )
 
