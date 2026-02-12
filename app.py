@@ -348,80 +348,83 @@ with c2:
 
 
 # -------------------------------------------------
-# PROGRESS PER MANUAL
+# PROGRESS PER MANUAL (ONLY WHEN ALL MANUALS)
 # -------------------------------------------------
-progress = (
-    df_f.groupby("Manual Name")
-    .agg(
-        total=("Req ID", "count"),
-        weighted=("progress_weight", "mean")
-    )
-    .reset_index()
-)
+if selected_manual_label == T["all"]:
 
-progress["pct"] = progress["weighted"] * 100
-progress["Manual Label"] = progress["Manual Name"].apply(manual_label)
-
-st.subheader("📘 " + T["progress_manual"])
-
-for _, row in progress.iterrows():
-
-    color = (
-        "#2ca02c" if row.pct >= 80
-        else "#ff7f0e" if row.pct >= 50
-        else "#d62728"
+    progress = (
+        df_f.groupby("Manual Name")
+        .agg(
+            total=("Req ID", "count"),
+            weighted=("progress_weight", "mean")
+        )
+        .reset_index()
     )
 
-    st.markdown(f"""
-    <div class="manual-card"
-         style="border-left:8px solid {color};
-                padding:14px;
-                margin-bottom:10px;
-                border-radius:10px;
-                border:1px solid #e6e9ef;">
-        <h4>{row['Manual Label']}</h4>
-        <b>{T["completion"]}: {row.pct:.1f}%</b>
-    </div>
-    """, unsafe_allow_html=True)
+    progress["pct"] = progress["weighted"] * 100
+    progress["Manual Label"] = progress["Manual Name"].apply(manual_label)
 
-    st.progress(row.pct / 100)
+    st.subheader("📘 " + T["progress_manual"])
 
+    for _, row in progress.iterrows():
+
+        color = (
+            "#2ca02c" if row.pct >= 80
+            else "#ff7f0e" if row.pct >= 50
+            else "#d62728"
+        )
+
+        st.markdown(f"""
+        <div class="manual-card"
+             style="border-left:8px solid {color};
+                    padding:14px;
+                    margin-bottom:10px;
+                    border-radius:10px;
+                    border:1px solid #e6e9ef;">
+            <h4>{row['Manual Label']}</h4>
+            <b>{T["completion"]}: {row.pct:.1f}%</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.progress(row.pct / 100)
 
 # -------------------------------------------------
-# STACKED STATUS
+# STACKED STATUS (ONLY WHEN ALL MANUALS)
 # -------------------------------------------------
-st.subheader("📊 " + T["status_breakdown"])
+if selected_manual_label == T["all"]:
 
-stack = (
-    df_f.groupby(["Manual Name", "Status"])
-    .size()
-    .reset_index(name="count")
-)
+    st.subheader("📊 " + T["status_breakdown"])
 
-stack["Manual Label"] = stack["Manual Name"].apply(manual_label)
+    stack = (
+        df_f.groupby(["Manual Name", "Status"])
+        .size()
+        .reset_index(name="count")
+    )
 
-stack["pct"] = (
-    stack["count"] /
-    stack.groupby("Manual Name")["count"].transform("sum")
-) * 100
+    stack["Manual Label"] = stack["Manual Name"].apply(manual_label)
 
-fig_stack = px.bar(
-    stack,
-    y="Manual Label",
-    x="pct",
-    color="Status",
-    orientation="h",
-    barmode="stack",
-    color_discrete_map=status_colors,
-    text="pct"
-)
+    stack["pct"] = (
+        stack["count"] /
+        stack.groupby("Manual Name")["count"].transform("sum")
+    ) * 100
 
-fig_stack.update_traces(texttemplate='%{text:.1f}%')
-fig_stack.update_layout(
-    height=120 + 45 * len(stack["Manual Label"].unique())
-)
+    fig_stack = px.bar(
+        stack,
+        y="Manual Label",
+        x="pct",
+        color="Status",
+        orientation="h",
+        barmode="stack",
+        color_discrete_map=status_colors,
+        text="pct"
+    )
 
-st.plotly_chart(fig_stack, use_container_width=True)
+    fig_stack.update_traces(texttemplate='%{text:.1f}%')
+    fig_stack.update_layout(
+        height=120 + 45 * len(stack["Manual Label"].unique())
+    )
+
+    st.plotly_chart(fig_stack, use_container_width=True)
 
 
 # -------------------------------------------------
@@ -455,3 +458,4 @@ if not view_mode:
         "focus_items.csv",
         "text/csv"
     )
+
