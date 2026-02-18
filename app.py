@@ -139,6 +139,7 @@ T = {
     "progress_manual": "Progress by Manual",
     "status_dist": "Global Status Distribution",
     "status_breakdown": "Status Breakdown by Manual (%)",
+    "status_overview": "Status Overview",
     "action_table": "🚀 Focus Action Table — Non Final Items",
     "download": "⬇️ Download Focus Items",
     "active_filters": "Active filters"
@@ -165,6 +166,7 @@ if LANG == "ES":
         "progress_manual": "Avance por Manual",
         "status_dist": "Distribución Global de Estatus",
         "status_breakdown": "Distribución de Estatus por Manual (%)",
+        "status_overview": "Resumen de Estatus",
         "action_table": "🚀 Tabla de Acción — No Final",
         "download": "⬇️ Descargar Pendientes",
         "active_filters": "Filtros activos"
@@ -326,7 +328,7 @@ with k3:
 
 
 # -------- Row 2 (Status Breakdown)
-st.markdown("### Status Overview")
+st.markdown("### " + T["status_overview"])
 
 cols = st.columns(len(status_order))
 
@@ -484,5 +486,6 @@ if not view_mode:
         "focus_items.csv",
         "text/csv"
     )
+
 
 
