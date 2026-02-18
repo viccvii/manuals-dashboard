@@ -86,22 +86,25 @@ df = load_data(uploaded)
 # -------------------------------------------------
 status_weights = {
     "Not started": 0,
-    "Applies partially": 0.5,
-    "QA": 0.9,
+    "Mapped": 0.3,
+    "QA": 0.6,
+    "In bunq review": 0.85,
     "Final": 1
 }
 
 status_order = [
     "Not started",
-    "Applies partially",
+    "Mapped",
     "QA",
+    "In bunq review",
     "Final"
 ]
 
 status_colors = {
     "Not started": "#d62728",
-    "Applies partially": "#ff7f0e",
+    "Mapped": "#ff7f0e",
     "QA": "#f2c94c",
+    "In bunq review": "#4dabf7",
     "Final": "#2ca02c"
 }
 
@@ -270,48 +273,64 @@ if active:
 
 
 # -------------------------------------------------
-# KPIs EXECUTIVE CARDS
+# KPIs EXECUTIVE CARDS (EXPANDED)
 # -------------------------------------------------
+
 total_req = len(df_f)
 
-pct_final = (
-    (df_f["Status"] == "Final").mean() * 100
-    if total_req else 0
+status_summary = (
+    df_f["Status"]
+    .value_counts()
+    .reindex(status_order, fill_value=0)
 )
 
-pct_qa = (
-    (df_f["Status"] == "QA").mean() * 100
-    if total_req else 0
+status_pct = (
+    status_summary / total_req * 100
+    if total_req else status_summary
 )
 
+remaining_req = total_req - status_summary["Final"]
 overall_weighted = (
     df_f["progress_weight"].mean() * 100
     if total_req else 0
 )
 
 
-def card(label, value):
+def card(label, value, color=None):
+    border = f"border-top:6px solid {color};" if color else ""
     st.markdown(f"""
-    <div class="metric-card">
+    <div class="metric-card" style="{border}">
         <div class="big-metric">{value}</div>
         <div class="metric-label">{label}</div>
     </div>
     """, unsafe_allow_html=True)
 
 
-k1, k2, k3, k4 = st.columns(4)
+# -------- Row 1 (Executive KPIs)
+k1, k2, k3 = st.columns(3)
 
 with k1:
-    card(T["kpi_weighted"], f"{overall_weighted:.1f}%")
+    card("Weighted Progress", f"{overall_weighted:.1f}%")
 
 with k2:
-    card(T["kpi_final"], f"{pct_final:.1f}%")
+    card("Total Requirements", total_req)
 
 with k3:
-    card(T["kpi_qa"], f"{pct_qa:.1f}%")
+    card("Remaining (Non Final)", remaining_req)
 
-with k4:
-    card(T["kpi_total"], total_req)
+
+# -------- Row 2 (Status Breakdown)
+st.markdown("### Status Overview")
+
+cols = st.columns(len(status_order))
+
+for i, status in enumerate(status_order):
+    with cols[i]:
+        card(
+            f"{status}",
+            f"{status_pct[status]:.1f}%  \n({status_summary[status]})",
+            status_colors.get(status)
+        )
 
 
 # -------------------------------------------------
@@ -459,3 +478,4 @@ if not view_mode:
         "focus_items.csv",
         "text/csv"
     )
+
