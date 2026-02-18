@@ -131,6 +131,9 @@ T = {
     "kpi_final": "Final %",
     "kpi_qa": "QA %",
     "kpi_weighted": "Weighted Progress",
+    "kpi_weighted_full": "Weighted Progress",
+    "kpi_total_full": "Total Requirements",
+    "kpi_remaining": "Remaining (Non Final)",
     "gauge": "Executive Overall Progress",
     "completion": "Completion",
     "progress_manual": "Progress by Manual",
@@ -154,6 +157,9 @@ if LANG == "ES":
         "kpi_final": "% Final",
         "kpi_qa": "% QA",
         "kpi_weighted": "Avance Ponderado",
+        "kpi_weighted_full": "Avance Ponderado",
+        "kpi_total_full": "Total de Requerimientos",
+        "kpi_remaining": "Pendientes (No Final)",
         "gauge": "Avance Ejecutivo Global",
         "completion": "Avance",
         "progress_manual": "Avance por Manual",
@@ -310,13 +316,13 @@ def card(label, value, color=None):
 k1, k2, k3 = st.columns(3)
 
 with k1:
-    card("Weighted Progress", f"{overall_weighted:.1f}%")
+    card(T["kpi_weighted_full"], f"{overall_weighted:.1f}%")
 
 with k2:
-    card("Total Requirements", total_req)
+    card(T["kpi_total_full"], total_req)
 
 with k3:
-    card("Remaining (Non Final)", remaining_req)
+    card(T["kpi_remaining"], remaining_req)
 
 
 # -------- Row 2 (Status Breakdown)
@@ -478,4 +484,5 @@ if not view_mode:
         "focus_items.csv",
         "text/csv"
     )
+
 
